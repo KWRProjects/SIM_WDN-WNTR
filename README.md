@@ -1,7 +1,7 @@
 ![WNTR](documentation/figures/logo.png)
 =======================================
 
-![WNTR architecture](./WNTR/classes_WNTR.svg)
+![WNTR architecture](./classes_WNTR.svg)
 
 ![build](https://github.com/USEPA/WNTR/workflows/build/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/USEPA/WNTR/badge.svg?branch=master)](https://coveralls.io/github/USEPA/WNTR?branch=master)
