@@ -1,3 +1,5 @@
+import time
+
 from wntr.sim.core import WaterNetworkSimulator
 import wntr.epanet.io
 import logging
@@ -93,27 +95,88 @@ class EpanetSimulator(WaterNetworkSimulator):
             a warning will be issued, and results.error_code will be set to 0
             if the simulation does not converge.  Default = False.
         """
+        loop_n = 10  # number retry
+        loop_dt = 1  # sec
+
         if isinstance(version, str):
             version = float(version)
         inpfile = file_prefix + '.inp'
-        self._wn.write_inpfile(inpfile, units=self._wn.options.hydraulic.inpfile_units, version=version)
+
+        is_next = False
+        for i_try in range(0, loop_n):
+            try:
+                self._wn.write_inpfile(inpfile, units=self._wn.options.hydraulic.inpfile_units, version=version)
+                is_next = True
+            except Exception as str_error:
+                # print('%02d, Waiting for inp file to be writen ...' % i_try, str_error)
+                is_next = False
+
+            if not is_next:
+                time.sleep(loop_dt)
+            else:
+                logger.debug('Writed inp file')
+                break
+
         enData = wntr.epanet.toolkit.ENepanet(version=version)
         rptfile = file_prefix + '.rpt'
         outfile = file_prefix + '.bin'
+
         if hydfile is None:
             hydfile = file_prefix + '.hyd'
-        enData.ENopen(inpfile, rptfile, outfile)
+
+        is_next = False
+        for i_try in range(0, loop_n):
+            try:
+                enData.ENopen(inpfile, rptfile, outfile)
+                is_next = True
+            except Exception as str_error:
+                # print('%02d, Waiting for rpt file to be writen ...' % i_try, str_error)
+                is_next = False
+
+            if not is_next:
+                time.sleep(loop_dt)
+            else:
+                logger.debug('Writed inp file')
+                break
+
         if use_hyd:
             enData.ENusehydfile(hydfile)
             logger.debug('Loaded hydraulics')
         else:
             enData.ENsolveH()
             logger.debug('Solved hydraulics')
+
         if save_hyd:
-            enData.ENsavehydfile(hydfile)
-            logger.debug('Saved hydraulics')
-        enData.ENsolveQ()
-        logger.debug('Solved quality')
+            is_next = False
+            for i_try in range(0, loop_n):
+                try:
+                    enData.ENsavehydfile(hydfile)
+                    is_next = True
+                except Exception as str_error:
+                    # print('%02d, Waiting for hydraulics to be simulated ...' % i_try, str_error)
+                    is_next = False
+
+                if not is_next:
+                    time.sleep(loop_dt)
+                else:
+                    logger.debug('Saved hydraulics')
+                    break
+
+        is_next = False
+        for i_try in range(0, loop_n):
+            try:
+                enData.ENsolveQ()
+                is_next = True
+            except Exception as str_error:
+                # print('%02d, Waiting for hydraulics to be saved ...' % i_try, str_error)
+                is_next = False
+
+            if not is_next:
+                time.sleep(loop_dt)
+            else:
+                logger.debug('Solved quality')
+                break
+
         enData.ENreport()
         logger.debug('Ran quality')
         enData.ENclose()
